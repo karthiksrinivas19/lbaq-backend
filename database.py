@@ -1,6 +1,6 @@
 from pymongo import MongoClient
 
-MONGO_URL = "mongodb+srv://karthik:1ypnL7u2hnIIFbvS@cluster1.bnv5i.mongodb.net/?retryWrites=true&w=majority"
+MONGO_URL = "hello"
 
 # Create a synchronous MongoDB client
 client = MongoClient(MONGO_URL)
