@@ -2,12 +2,13 @@ from pydantic import BaseModel
 
 
 class User(BaseModel):
-    name:str
-    email:str
-    phone:str
-    is_officer:bool
-    department:str
-    location:str
+    name: str
+    email: str
+    password: str
+    aadhar: str
+    phone_number: str
+    location: str
+    is_officer: bool
 
 class News(BaseModel):
     title:str
