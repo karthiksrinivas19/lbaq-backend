@@ -21,3 +21,12 @@ class Query(BaseModel):
     description:str
     department:str
     location:str
+
+class Answer(BaseModel):
+    query_id:str
+    answer:str
+    department:str
+    location:str
+    user_name:str
+
+
