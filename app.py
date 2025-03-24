@@ -4,12 +4,14 @@ from database import db
 import database as db
 import hashlib
 import hmac
-
+from models import News
+from models import LoginData
 from models import Query
-
+from models import Answer
+from mangum import Mangum
+from database import SECRET_KEY
 app = FastAPI()
-
-SECRET_KEY = "Ore wa monkey d luffy !!Kaizoku-o ni ore wa naru"
+handler = Mangum(app)
 
 class User(BaseModel):
     name: str
@@ -36,29 +38,30 @@ def get(item_string: str):
 
 @app.post("/user/signup")
 def signup(user: User):
-    if db.get_user(user.name):
+    if db.get_user(user.email):
         raise HTTPException(status_code=400, detail="User already exists")
     db.add_user(user)
     return {"message": "User registered successfully"}
 
-@app.get("/user/{name}")
-def get_user(name: str):
-    user = db.get_user(name)
+@app.get("/user/{email}")
+def get_user(email:str):
+    user = db.get_user(email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
 def encode_password(password: str) -> str:
-        return hmac.new(SECRET_KEY.encode(), password.encode(), hashlib.sha256).hexdigest()
-
+    return hmac.new(SECRET_KEY.encode(), password.encode(), hashlib.sha256).hexdigest()
     
 @app.post("/user/login")
-def login(email: str, password: str):
-    encoded_password = encode_password(password)
-    user = db.get_user_by_email(email)
-    if not user or user.password != encoded_password:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+def login(data: LoginData):
+    if not db.get_user(data.email):
+        raise HTTPException(status_code=404, detail="User not found")
+    if db.get_user(data.email)["password"] != encode_password(data.password):
+        print(encode_password(data.password))
+        raise HTTPException(status_code=401, detail="Invalid password")
     return {"message": "Login successful"}
+
 @app.get("/news/{location}")
 def get_news_by_location(location: str):
     news = db.get_news_by_location(location)
@@ -67,46 +70,46 @@ def get_news_by_location(location: str):
     return news
 
 
-@app.post("/user/query")
+@app.post("/add-query")
 def post_query(query: Query):
-    user = db.get_user(query.user_name)
+    user = db.get_user(query.email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     db.add_query(query)
     return {"message": "Query posted successfully"}
 
-@app.post("/news")
-def post_news(news: dict, user_name: str):
-    user = db.get_user(user_name)
+@app.post("/add-news")
+def post_news(news: News):
+    user = db.get_user(news.email)  # Fetch user by email
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if not user.is_officer:
+    
+    if not user["is_officer"]:  # Fix: Accessing the attribute correctly
         raise HTTPException(status_code=403, detail="Only officers can post news")
-    db.add_news(news)
+    
+    db.add_news(news.dict())  # Store news in DB
     return {"message": "News posted successfully"}
 
-
-@app.get("/queries")
-def get_queries(location: str, department: str):
+@app.get("/queries/{location}/{department}")
+def get_queries(location, department):
     queries = db.get_queries_by_location_and_department(location, department)
     if not queries:
         raise HTTPException(status_code=404, detail="No queries found for the given location and department")
     return queries
 
 @app.post("/queries/answer")
-def post_answer(query_id: int, answer: str, user_name: str):
-    user = db.get_user(user_name)
+def post_answer(answer:Answer):
+    user = db.get_user(answer.email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if not user.is_officer:
+    if not user['is_officer']:
         raise HTTPException(status_code=403, detail="Only officers can post answers")
         
-    query = db.get_query_by_id(query_id)
+    query = db.get_query_by_id(answer.query_id)
     if not query:
         raise HTTPException(status_code=404, detail="Query not found")
-    if query.department != user.department:
-        raise HTTPException(status_code=403, detail="You can only answer queries from your department")
-        
-    db.add_answer_to_query(query_id, answer, user_name)
+    db.add_answer_to_query(answer)
     return {"message": "Answer posted successfully"}
+
+
 
